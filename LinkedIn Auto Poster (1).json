@@ -1,0 +1,345 @@
+{
+  "name": "LinkedIn Auto Poster",
+  "nodes": [
+    {
+      "parameters": {
+        "postAs": "organization",
+        "organization": "103026271",
+        "text": "={{ $('Code').item.json.post }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        0
+      ],
+      "id": "55bd1f97-75b2-4a10-939a-50639e0ca54c",
+      "name": "Create a post",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "vlkce4y1Xd9Bfqnt",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "51796ff0-91e1-4b73-b8d7-f9ef3aca10c7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"latest update in Quantum AI field?\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        256
+      ],
+      "id": "dcff10c5-295a-4521-bf97-e14cac58e0ff",
+      "name": "Tavily Web Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the raw output from the AI Agent node\nconst rawOutput = $json.output || \"\";\n\n// Remove ```json and ``` markers if present\nlet cleaned = rawOutput.replace(/```json|```/g, '').trim();\n\n// Parse JSON if it's valid\nlet post = \"\";\ntry {\n  const parsed = JSON.parse(cleaned);\n  post = parsed.post || \"\";\n} catch (e) {\n  post = cleaned; // fallback if JSON.parse fails\n}\n\n// Return a clean object\nreturn [{ json: { post } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        0
+      ],
+      "id": "b74d10e0-cc2a-436a-ab8e-1e01d529a5e9",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert content strategist.\n\n**Goal:** Create a single, catchy line (max 8–10 words) from the given LinkedIn post text.  \nThis line should:\n- Capture the essence of the post.\n- Be visually impactful, as it will be used for an image or banner.\n- Avoid hashtags, emojis, or special characters.\n- Use simple, powerful words.\n- Remove any additional commentary. Only keep the post content and nothing else.\n\n**Input Post:** \n{{ $json.post }}\n\n**Output Format (JSON):**\n{\n  \"headline\": \"Your 1-line image headline here\"\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        768,
+        0
+      ],
+      "id": "e287aa88-aca1-40b8-9494-ff7de1c9cd89",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawText = $json.text || \"\";\n\n// Remove code block markers\nlet cleaned = rawText.replace(/```json|```/g, '').trim();\n\nlet finalText = \"\";\ntry {\n  // Parse the JSON if valid\n  const parsed = JSON.parse(cleaned);\n  finalText = parsed.headline || \"\";\n} catch (e) {\n  // If parsing fails, try to clean manually\n  finalText = cleaned.replace(/^{|}$/g, '')\n                     .replace(/\"headline\":/i, '')\n                     .replace(/[\"{}]/g, '')\n                     .trim();\n}\n\n// Return only the raw string\nreturn [{ json: { text: finalText } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "e81a852d-29af-453d-b19d-ec0afb539726",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stability.ai/v2beta/stable-image/generate/core",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "authorization",
+              "value": "Bearer sk-zTsIQDKLrTygpcjhue5cYFoWuuR5kq3sRqjILmnH8vS0AaRb"
+            },
+            {
+              "name": "accept",
+              "value": "image/*"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{$json.text}}"
+            },
+            {
+              "name": "output_format",
+              "value": "webp"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1328,
+        0
+      ],
+      "id": "437c6fff-328d-4897-bd09-10e997601479",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        272
+      ],
+      "id": "5696c1ef-23ea-4642-951b-5941799bd6d8",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "f31gmVMlt5HeiN6T",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        768,
+        256
+      ],
+      "id": "ed101425-d318-4685-95f9-2ae4abf81e4b",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "f31gmVMlt5HeiN6T",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a social media automation expert. write a post based on latest research in AI. use tavily tool to get lastest information in AI.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "52cc24df-01a4-4fa9-add5-9c9aee17667c",
+      "name": "AI Agent"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily Web Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create a post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "314ff0e1-9280-45f5-a562-d4d2dd56a8cc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b1ddcdf1412278fc4732f1b08dd6343b7e9092d37ff3d5e927b0d97bb48aa193"
+  },
+  "id": "8TABqylKHlONvVLq",
+  "tags": []
+}
